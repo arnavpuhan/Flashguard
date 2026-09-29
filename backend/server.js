@@ -32,9 +32,9 @@ const villages = [
     name: "Village C",
     lat: 30.0915,
     lng: 78.3102,
-    rainfall: 5,
-    soilMoisture: 25,
-    waterLevel: 10,
+    rainfall: 0,
+    soilMoisture: 0,
+    waterLevel: 0,
     slope: 34,
   },
   {
@@ -122,23 +122,15 @@ app.post("/api/demo/flood", (req, res) => {
     village.demoStage = 4;
   }
 
-  /*
-    STAGE 1
-    Normal environmental conditions
-    Expected status: LOW
-  */
+  /* STAGE 1 — NORMAL */
 
   if (village.demoStage === 1) {
-    village.rainfall = 5;
-    village.soilMoisture = 25;
-    village.waterLevel = 10;
+    village.rainfall = 0;
+    village.soilMoisture = 0;
+    village.waterLevel = 0;
   }
 
-  /*
-    STAGE 2
-    Increasing environmental stress
-    Expected status: MODERATE
-  */
+  /* STAGE 2 — MODERATE */
 
   if (village.demoStage === 2) {
     village.rainfall = 55;
@@ -146,11 +138,7 @@ app.post("/api/demo/flood", (req, res) => {
     village.waterLevel = 38;
   }
 
-  /*
-    STAGE 3
-    Dangerous conditions
-    Expected status: HIGH
-  */
+  /* STAGE 3 — HIGH */
 
   if (village.demoStage === 3) {
     village.rainfall = 100;
@@ -158,11 +146,7 @@ app.post("/api/demo/flood", (req, res) => {
     village.waterLevel = 62;
   }
 
-  /*
-    STAGE 4
-    Critical flood conditions
-    Expected status: CRITICAL
-  */
+  /* STAGE 4 — CRITICAL */
 
   if (village.demoStage === 4) {
     village.rainfall = 145;
@@ -222,11 +206,9 @@ app.post("/api/demo/reset", (req, res) => {
 
   village.demoStage = 0;
 
-  village.rainfall = 5;
-
-  village.soilMoisture = 25;
-
-  village.waterLevel = 10;
+  village.rainfall = 0;
+  village.soilMoisture = 0;
+  village.waterLevel = 0;
 
   const risk = calculateRisk(
     village.rainfall,
