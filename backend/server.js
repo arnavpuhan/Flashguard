@@ -32,9 +32,9 @@ const villages = [
     name: "Village C",
     lat: 30.0915,
     lng: 78.3102,
-    rainfall: 118,
-    soilMoisture: 86,
-    waterLevel: 72,
+    rainfall: 25,
+    soilMoisture: 40,
+    waterLevel: 25,
     slope: 34,
   },
   {
@@ -49,58 +49,7 @@ const villages = [
   },
 ];
 
-/*
-  FLASHGUARD SIMULATED SENSOR ENGINE
-
-  This prototype simulates incoming environmental
-  sensor readings so the complete monitoring pipeline
-  can be demonstrated during the hackathon.
-
-  In a real deployment, this section can be replaced
-  with actual IoT / weather / hydrological data.
-*/
-
-function simulateSensorChanges() {
-  villages.forEach((village) => {
-    village.rainfall += Math.floor(Math.random() * 7) - 3;
-
-    village.soilMoisture +=
-      Math.floor(Math.random() * 5) - 2;
-
-    village.waterLevel +=
-      Math.floor(Math.random() * 5) - 2;
-
-    village.rainfall = Math.max(
-      0,
-      Math.min(village.rainfall, 150)
-    );
-
-    village.soilMoisture = Math.max(
-      0,
-      Math.min(village.soilMoisture, 100)
-    );
-
-    village.waterLevel = Math.max(
-      0,
-      Math.min(village.waterLevel, 80)
-    );
-  });
-
-  console.log(
-    "FLASHGUARD: simulated sensor data updated"
-  );
-}
-
-setInterval(simulateSensorChanges, 5000);
-
-/*
-  RISK CALCULATION
-
-  Rainfall       = 35%
-  Soil Moisture  = 25%
-  Water Level    = 25%
-  Terrain Slope = 15%
-*/
+/* ---------------- RISK CALCULATION ---------------- */
 
 function calculateRisk(
   rainfall,
@@ -108,25 +57,17 @@ function calculateRisk(
   waterLevel,
   slope
 ) {
-  const rainfallScore = Math.min(
-    (rainfall / 120) * 100,
-    100
-  );
+  const rainfallScore =
+    Math.min((rainfall / 120) * 100, 100);
 
-  const soilScore = Math.min(
-    soilMoisture,
-    100
-  );
+  const soilScore =
+    Math.min(soilMoisture, 100);
 
-  const waterScore = Math.min(
-    (waterLevel / 80) * 100,
-    100
-  );
+  const waterScore =
+    Math.min((waterLevel / 80) * 100, 100);
 
-  const slopeScore = Math.min(
-    (slope / 40) * 100,
-    100
-  );
+  const slopeScore =
+    Math.min((slope / 40) * 100, 100);
 
   const risk =
     rainfallScore * 0.35 +
@@ -153,9 +94,7 @@ function getStatus(risk) {
   return "CRITICAL";
 }
 
-/*
-  ROOT API
-*/
+/* ---------------- ROOT ---------------- */
 
 app.get("/", (req, res) => {
   res.json({
@@ -164,14 +103,8 @@ app.get("/", (req, res) => {
     mode: "Simulated Live Monitoring",
   });
 });
-/*
-  DEMO FLOOD SCENARIO
 
-  This endpoint intentionally increases the
-  environmental values of a selected village.
-
-  It is ONLY for hackathon demonstration.
-*/
+/* ---------------- CONTROLLED DEMO ---------------- */
 
 app.post("/api/demo/flood", (req, res) => {
   const villageId = Number(req.body.villageId || 3);
@@ -186,20 +119,104 @@ app.post("/api/demo/flood", (req, res) => {
     });
   }
 
-  village.rainfall = Math.min(
-    village.rainfall + 15,
-    150
+  /*
+    Controlled hackathon demonstration.
+
+    Each click moves Village C through:
+    NORMAL → MODERATE → HIGH → CRITICAL
+  */
+
+  if (!village.demoStage) {
+    village.demoStage = 0;
+  }
+
+  village.demoStage += 1;
+
+  if (village.demoStage > 4) {
+    village.demoStage = 4;
+  }
+
+  const stages = {
+    1: {
+      rainfall: 35,
+      soilMoisture: 48,
+      waterLevel: 30,
+    },
+
+    2: {
+      rainfall: 70,
+      soilMoisture: 62,
+      waterLevel: 46,
+    },
+
+    3: {
+      rainfall: 105,
+      soilMoisture: 78,
+      waterLevel: 62,
+    },
+
+    4: {
+      rainfall: 145,
+      soilMoisture: 94,
+      waterLevel: 78,
+    },
+  };
+
+  const stage = stages[village.demoStage];
+
+  village.rainfall = stage.rainfall;
+  village.soilMoisture = stage.soilMoisture;
+  village.waterLevel = stage.waterLevel;
+
+  const risk = calculateRisk(
+    village.rainfall,
+    village.soilMoisture,
+    village.waterLevel,
+    village.slope
   );
 
-  village.soilMoisture = Math.min(
-    village.soilMoisture + 5,
-    100
+  const status = getStatus(risk);
+
+  res.json({
+    message: "Flood simulation stage applied",
+
+    demoMode: true,
+
+    stage: village.demoStage,
+
+    totalStages: 4,
+
+    stageName:
+      status === "LOW"
+        ? "NORMAL"
+        : status,
+
+    village: {
+      ...village,
+      risk,
+      status,
+    },
+  });
+});
+
+/* ---------------- RESET DEMO ---------------- */
+
+app.post("/api/demo/reset", (req, res) => {
+  const village = villages.find(
+    (village) => village.id === 3
   );
 
-  village.waterLevel = Math.min(
-    village.waterLevel + 7,
-    80
-  );
+  if (!village) {
+    return res.status(404).json({
+      error: "Village not found",
+    });
+  }
+
+  village.demoStage = 0;
+
+  village.rainfall = 25;
+  village.soilMoisture = 40;
+  village.waterLevel = 25;
 
   const risk = calculateRisk(
     village.rainfall,
@@ -209,9 +226,10 @@ app.post("/api/demo/flood", (req, res) => {
   );
 
   res.json({
-    message:
-      "Demo flood scenario applied",
-    demoMode: true,
+    message: "Flood demo reset",
+
+    demoMode: false,
+
     village: {
       ...village,
       risk,
@@ -219,9 +237,8 @@ app.post("/api/demo/flood", (req, res) => {
     },
   });
 });
-/*
-  GET ALL VILLAGES
-*/
+
+/* ---------------- ALL VILLAGES ---------------- */
 
 app.get("/api/villages", (req, res) => {
   const result = villages.map((village) => {
@@ -242,9 +259,7 @@ app.get("/api/villages", (req, res) => {
   res.json(result);
 });
 
-/*
-  GET ONE VILLAGE
-*/
+/* ---------------- ONE VILLAGE ---------------- */
 
 app.get("/api/villages/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -273,9 +288,7 @@ app.get("/api/villages/:id", (req, res) => {
   });
 });
 
-/*
-  SYSTEM HEALTH CHECK
-*/
+/* ---------------- HEALTH ---------------- */
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -287,9 +300,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-/*
-  START SERVER
-*/
+/* ---------------- SERVER ---------------- */
 
 const PORT = process.env.PORT || 5000;
 
