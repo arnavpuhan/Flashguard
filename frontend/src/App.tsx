@@ -71,6 +71,17 @@ function getTrendClass(history: number[]) {
   return "trend-neutral";
 }
 
+function addUniqueRisk(history: number[], risk: number) {
+  if (
+    history.length > 0 &&
+    history[history.length - 1] === risk
+  ) {
+    return history;
+  }
+
+  return [...history, risk].slice(-12);
+}
+
 function App() {
   const [filter, setFilter] =
     useState<RiskFilter>("All Regions");
@@ -108,7 +119,9 @@ function App() {
         village.id === selectedVillageId
     ) || null;
 
-  /* ---------------- CLOCK ---------------- */
+  /* =====================================================
+     CLOCK
+  ===================================================== */
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -118,31 +131,39 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  /* ---------------- RISK HISTORY ---------------- */
+  /* =====================================================
+     RISK HISTORY
+  ===================================================== */
 
   useEffect(() => {
     if (!selectedVillage) {
       return;
     }
 
-    setRiskHistory((previous) => {
-      const latestRisk = selectedVillage.risk;
+    const latestRisk = selectedVillage.risk;
 
-      if (
-        previous.length > 0 &&
-        previous[previous.length - 1] === latestRisk
-      ) {
-        return previous;
+    setRiskHistory((previous) => {
+      if (previous.length === 0) {
+        return [latestRisk];
       }
 
-      return [
-        ...previous,
-        latestRisk,
-      ].slice(-12);
+      const previousRisk =
+        previous[previous.length - 1];
+
+      if (latestRisk < previousRisk - 20) {
+        return [latestRisk];
+      }
+
+      return addUniqueRisk(
+        previous,
+        latestRisk
+      );
     });
   }, [selectedVillage]);
 
-  /* ---------------- VILLAGE UPDATE ---------------- */
+  /* =====================================================
+     VILLAGE UPDATE
+  ===================================================== */
 
   const handleVillagesUpdate = (
     updatedVillages: Village[]
@@ -151,7 +172,9 @@ function App() {
     setLastUpdated(new Date());
   };
 
-  /* ---------------- VILLAGE SELECT ---------------- */
+  /* =====================================================
+     VILLAGE SELECT
+  ===================================================== */
 
   const handleVillageSelect = (
     village: Village
@@ -161,7 +184,9 @@ function App() {
     setShowDetails(true);
   };
 
-  /* ---------------- BACKEND CONNECTION ---------------- */
+  /* =====================================================
+     BACKEND CONNECTION
+  ===================================================== */
 
   const handleConnectionChange = (
     connected: boolean
@@ -169,7 +194,9 @@ function App() {
     setBackendConnected(connected);
   };
 
-  /* ---------------- CONTROLLED FLOOD DEMO ---------------- */
+  /* =====================================================
+     RUN FLOOD DEMO
+  ===================================================== */
 
   const runFloodDemo = async () => {
     try {
@@ -190,23 +217,38 @@ function App() {
       );
 
       if (!response.ok) {
-        throw new Error("Demo request failed");
+        throw new Error(
+          "Demo request failed"
+        );
       }
 
       const data = await response.json();
 
+      const demoRisk =
+        data.village.risk;
+
       setDemoMessage(
-        `Stage ${data.stage}/${data.totalStages} — ${data.village.name}: ${data.village.status} risk — ${data.village.risk}/100`
+        `Stage ${data.stage}/${data.totalStages} — ${data.village.name}: ${data.village.status} risk — ${demoRisk}/100`
       );
 
-      setSelectedVillageId(data.village.id);
-
-      setRiskHistory((previous) =>
-        [
-          ...previous,
-          data.village.risk,
-        ].slice(-12)
+      setSelectedVillageId(
+        data.village.id
       );
+
+      setRiskHistory((previous) => {
+        if (
+          previous.length > 0 &&
+          demoRisk <
+            previous[previous.length - 1] - 20
+        ) {
+          return [demoRisk];
+        }
+
+        return addUniqueRisk(
+          previous,
+          demoRisk
+        );
+      });
 
       setShowDetails(true);
     } catch (error) {
@@ -220,7 +262,60 @@ function App() {
     }
   };
 
-  /* ---------------- RISK COUNTS ---------------- */
+  /* =====================================================
+     RESET FLOOD DEMO
+  ===================================================== */
+
+  const resetFloodDemo = async () => {
+    try {
+      setDemoLoading(true);
+      setDemoMessage("");
+
+      const response = await fetch(
+        "https://flashguard-a72s.onrender.com/api/demo/reset",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Reset request failed"
+        );
+      }
+
+      const data = await response.json();
+
+      setSelectedVillageId(
+        data.village.id
+      );
+
+      setRiskHistory([
+        data.village.risk,
+      ]);
+
+      setDemoMessage(
+        `Demo reset — ${data.village.name}: ${data.village.status} risk — ${data.village.risk}/100`
+      );
+
+      setShowDetails(true);
+    } catch (error) {
+      console.error(error);
+
+      setDemoMessage(
+        "Unable to reset the flood demo. Please check the backend."
+      );
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
+  /* =====================================================
+     RISK COUNTS
+  ===================================================== */
 
   const criticalCount =
     villages.filter(
@@ -255,7 +350,9 @@ function App() {
       village.status === "HIGH"
   );
 
-  /* ---------------- FORMATTED TIME ---------------- */
+  /* =====================================================
+     FORMATTED TIME
+  ===================================================== */
 
   const formattedLastUpdated =
     lastUpdated.toLocaleTimeString();
@@ -263,7 +360,9 @@ function App() {
   const formattedCurrentTime =
     currentTime.toLocaleTimeString();
 
-  /* ---------------- SELECTED RISK ---------------- */
+  /* =====================================================
+     SELECTED RISK
+  ===================================================== */
 
   const currentRisk =
     selectedVillage?.risk ?? 0;
@@ -282,9 +381,7 @@ function App() {
   return (
     <div className="app-shell">
 
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
+      {/* HEADER */}
 
       <header className="top-header">
 
@@ -301,7 +398,7 @@ function App() {
             </h1>
 
             <p>
-              Flash Flood Early Warning &
+              Flash Flood Early Warning &{" "}
               Disaster Monitoring System
             </p>
 
@@ -329,9 +426,7 @@ function App() {
 
       <main className="dashboard-container">
 
-        {/* =====================================================
-            HERO
-        ===================================================== */}
+        {/* HERO */}
 
         <section className="hero-section">
 
@@ -366,9 +461,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            MAP
-        ===================================================== */}
+        {/* MAP */}
 
         <section className="map-section">
 
@@ -468,9 +561,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            EARLY WARNING SYSTEM
-        ===================================================== */}
+        {/* EARLY WARNING SYSTEM */}
 
         <section className="early-warning-section">
 
@@ -536,17 +627,29 @@ function App() {
 
             </div>
 
-            <button
-              className="demo-button"
-              onClick={runFloodDemo}
-              disabled={demoLoading}
-            >
+            <div className="demo-buttons">
 
-              {demoLoading
-                ? "Simulating..."
-                : "🚨 Run Flood Scenario"}
+              <button
+                className="demo-button"
+                onClick={runFloodDemo}
+                disabled={demoLoading}
+              >
 
-            </button>
+                {demoLoading
+                  ? "Simulating..."
+                  : "🚨 Run Flood Scenario"}
+
+              </button>
+
+              <button
+                className="demo-button reset-demo-button"
+                onClick={resetFloodDemo}
+                disabled={demoLoading}
+              >
+                🔄 Reset Demo
+              </button>
+
+            </div>
 
           </div>
 
@@ -670,9 +773,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            RISK OVERVIEW
-        ===================================================== */}
+        {/* RISK OVERVIEW */}
 
         <section className="overview-section">
 
@@ -799,9 +900,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            SELECTED VILLAGE
-        ===================================================== */}
+        {/* SELECTED VILLAGE */}
 
         <section className="selected-village-section">
 
@@ -1381,9 +1480,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            AUTOMATIC ALERTS
-        ===================================================== */}
+        {/* AUTOMATIC ALERTS */}
 
         <section className="automatic-alert-section">
 
@@ -1502,9 +1599,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            SYSTEM ACTIVITY
-        ===================================================== */}
+        {/* SYSTEM ACTIVITY */}
 
         <section className="system-activity-section">
 
@@ -1673,9 +1768,7 @@ function App() {
 
         </section>
 
-        {/* =====================================================
-            FOOTER
-        ===================================================== */}
+        {/* FOOTER */}
 
         <footer className="dashboard-footer">
 
@@ -1686,7 +1779,7 @@ function App() {
             </strong>
 
             <span>
-              Flash Flood Early Warning &
+              Flash Flood Early Warning &{" "}
               Disaster Monitoring System
             </span>
 
@@ -1701,9 +1794,7 @@ function App() {
 
       </main>
 
-      {/* =====================================================
-          DETAILS MODAL
-      ===================================================== */}
+      {/* DETAILS MODAL */}
 
       {showDetails && selectedVillage && (
 
