@@ -6,7 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Simulated village sensor data
 const villages = [
   {
     id: 1,
@@ -50,12 +49,26 @@ const villages = [
   },
 ];
 
-// Simulate changing sensor readings
+/*
+  FLASHGUARD SIMULATED SENSOR ENGINE
+
+  This prototype simulates incoming environmental
+  sensor readings so the complete monitoring pipeline
+  can be demonstrated during the hackathon.
+
+  In a real deployment, this section can be replaced
+  with actual IoT / weather / hydrological data.
+*/
+
 function simulateSensorChanges() {
   villages.forEach((village) => {
     village.rainfall += Math.floor(Math.random() * 7) - 3;
-    village.soilMoisture += Math.floor(Math.random() * 5) - 2;
-    village.waterLevel += Math.floor(Math.random() * 5) - 2;
+
+    village.soilMoisture +=
+      Math.floor(Math.random() * 5) - 2;
+
+    village.waterLevel +=
+      Math.floor(Math.random() * 5) - 2;
 
     village.rainfall = Math.max(
       0,
@@ -73,13 +86,22 @@ function simulateSensorChanges() {
     );
   });
 
-  console.log("Live sensor data updated");
+  console.log(
+    "FLASHGUARD: simulated sensor data updated"
+  );
 }
 
-// Update simulated sensor data every 5 seconds
 setInterval(simulateSensorChanges, 5000);
 
-// Calculate flood risk
+/*
+  RISK CALCULATION
+
+  Rainfall       = 35%
+  Soil Moisture  = 25%
+  Water Level    = 25%
+  Terrain Slope = 15%
+*/
+
 function calculateRisk(
   rainfall,
   soilMoisture,
@@ -115,7 +137,6 @@ function calculateRisk(
   return Math.round(risk);
 }
 
-// Convert risk score into status
 function getStatus(risk) {
   if (risk <= 30) {
     return "LOW";
@@ -132,14 +153,76 @@ function getStatus(risk) {
   return "CRITICAL";
 }
 
-// Health check
+/*
+  ROOT API
+*/
+
 app.get("/", (req, res) => {
   res.json({
     message: "FLASHGUARD API is running",
+    system: "Flash Flood Early Warning System",
+    mode: "Simulated Live Monitoring",
   });
 });
+/*
+  DEMO FLOOD SCENARIO
 
-// Get all villages
+  This endpoint intentionally increases the
+  environmental values of a selected village.
+
+  It is ONLY for hackathon demonstration.
+*/
+
+app.post("/api/demo/flood", (req, res) => {
+  const villageId = Number(req.body.villageId || 3);
+
+  const village = villages.find(
+    (village) => village.id === villageId
+  );
+
+  if (!village) {
+    return res.status(404).json({
+      error: "Village not found",
+    });
+  }
+
+  village.rainfall = Math.min(
+    village.rainfall + 15,
+    150
+  );
+
+  village.soilMoisture = Math.min(
+    village.soilMoisture + 5,
+    100
+  );
+
+  village.waterLevel = Math.min(
+    village.waterLevel + 7,
+    80
+  );
+
+  const risk = calculateRisk(
+    village.rainfall,
+    village.soilMoisture,
+    village.waterLevel,
+    village.slope
+  );
+
+  res.json({
+    message:
+      "Demo flood scenario applied",
+    demoMode: true,
+    village: {
+      ...village,
+      risk,
+      status: getStatus(risk),
+    },
+  });
+});
+/*
+  GET ALL VILLAGES
+*/
+
 app.get("/api/villages", (req, res) => {
   const result = villages.map((village) => {
     const risk = calculateRisk(
@@ -159,7 +242,10 @@ app.get("/api/villages", (req, res) => {
   res.json(result);
 });
 
-// Get a single village
+/*
+  GET ONE VILLAGE
+*/
+
 app.get("/api/villages/:id", (req, res) => {
   const id = Number(req.params.id);
 
@@ -187,11 +273,28 @@ app.get("/api/villages/:id", (req, res) => {
   });
 });
 
-// Start server
+/*
+  SYSTEM HEALTH CHECK
+*/
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "online",
+    service: "FLASHGUARD",
+    timestamp: new Date().toISOString(),
+    monitoredRegions: villages.length,
+    updateInterval: "5 seconds",
+  });
+});
+
+/*
+  START SERVER
+*/
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(
-    `FLASHGUARD backend running on http://localhost:${PORT}`
+    `FLASHGUARD backend running on port ${PORT}`
   );
 });
