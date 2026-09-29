@@ -34,33 +34,15 @@ export type Village = {
 
 type MapViewProps = {
   filter: RiskFilter;
-
-  onVillageSelect: (
-    village: Village
-  ) => void;
-
-  onVillagesUpdate?: (
-    villages: Village[]
-  ) => void;
-
-  onConnectionChange?: (
-    connected: boolean
-  ) => void;
+  onVillageSelect: (village: Village) => void;
+  onVillagesUpdate?: (villages: Village[]) => void;
+  onConnectionChange?: (connected: boolean) => void;
 };
 
 function getColor(risk: number) {
-  if (risk <= 30) {
-    return "#39d98a";
-  }
-
-  if (risk <= 60) {
-    return "#ffd43b";
-  }
-
-  if (risk <= 80) {
-    return "#ff922b";
-  }
-
+  if (risk <= 30) return "#39d98a";
+  if (risk <= 60) return "#ffd43b";
+  if (risk <= 80) return "#ff922b";
   return "#ff4d4d";
 }
 
@@ -70,7 +52,6 @@ export default function MapView({
   onVillagesUpdate,
   onConnectionChange,
 }: MapViewProps) {
-
   const [villages, setVillages] =
     useState<Village[]>([]);
 
@@ -80,18 +61,11 @@ export default function MapView({
   const [error, setError] =
     useState(false);
 
-
-  // =====================================
-  // FETCH LIVE DATA
-  // =====================================
-
   const fetchVillages = () => {
-
     fetch(
-      "http://localhost:5000/api/villages"
+      "https://flashguard-a72s.onrender.com/api/villages"
     )
       .then((response) => {
-
         if (!response.ok) {
           throw new Error(
             "Failed to fetch villages"
@@ -99,10 +73,8 @@ export default function MapView({
         }
 
         return response.json();
-
       })
       .then((data: Village[]) => {
-
         setVillages(data);
 
         if (onVillagesUpdate) {
@@ -115,10 +87,8 @@ export default function MapView({
         if (onConnectionChange) {
           onConnectionChange(true);
         }
-
       })
       .catch((error) => {
-
         console.error(error);
 
         setError(true);
@@ -127,88 +97,44 @@ export default function MapView({
         if (onConnectionChange) {
           onConnectionChange(false);
         }
-
       });
-
   };
 
-
-  // =====================================
-  // AUTOMATIC UPDATE EVERY 5 SECONDS
-  // =====================================
-
   useEffect(() => {
-
     fetchVillages();
 
-    const interval =
-      setInterval(() => {
+    const interval = setInterval(() => {
+      fetchVillages();
+    }, 5000);
 
-        fetchVillages();
-
-      }, 5000);
-
-    return () =>
-      clearInterval(interval);
-
+    return () => clearInterval(interval);
   }, []);
-
-
-  // =====================================
-  // FILTER
-  // =====================================
 
   const filteredVillages =
     villages.filter((village) => {
-
-      if (
-        filter === "All Regions"
-      ) {
+      if (filter === "All Regions") {
         return true;
       }
 
-      if (
-        filter === "High Risk"
-      ) {
-
+      if (filter === "High Risk") {
         return (
           village.status === "HIGH" ||
           village.status === "CRITICAL"
         );
-
       }
 
-      if (
-        filter === "Moderate Risk"
-      ) {
-
-        return (
-          village.status === "MODERATE"
-        );
-
+      if (filter === "Moderate Risk") {
+        return village.status === "MODERATE";
       }
 
-      if (
-        filter === "Low Risk"
-      ) {
-
-        return (
-          village.status === "LOW"
-        );
-
+      if (filter === "Low Risk") {
+        return village.status === "LOW";
       }
 
       return true;
-
     });
 
-
-  // =====================================
-  // LOADING
-  // =====================================
-
   if (loading) {
-
     return (
       <div
         style={{
@@ -220,23 +146,14 @@ export default function MapView({
           borderRadius: "14px",
         }}
       >
-
         <strong>
           Loading live sensor data...
         </strong>
-
       </div>
     );
-
   }
 
-
-  // =====================================
-  // ERROR
-  // =====================================
-
   if (error) {
-
     return (
       <div
         style={{
@@ -251,28 +168,18 @@ export default function MapView({
           gap: "10px",
         }}
       >
-
         <strong>
           ⚠️ Unable to connect to Flashguard backend
         </strong>
 
         <span>
-          Make sure the backend is running on
-          localhost:5000.
+          Check the deployed FLASHGUARD backend.
         </span>
-
       </div>
     );
-
   }
 
-
-  // =====================================
-  // MAP
-  // =====================================
-
   return (
-
     <MapContainer
       center={[30.075, 78.29]}
       zoom={13}
@@ -282,97 +189,71 @@ export default function MapView({
         borderRadius: "14px",
       }}
     >
-
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
+      {filteredVillages.map((village) => (
+        <CircleMarker
+          key={village.id}
+          center={[
+            village.lat,
+            village.lng,
+          ]}
+          radius={12}
+          pathOptions={{
+            color: getColor(village.risk),
+            fillColor: getColor(village.risk),
+            fillOpacity: 0.8,
+          }}
+          eventHandlers={{
+            click: () => {
+              onVillageSelect(village);
+            },
+          }}
+        >
+          <Popup>
+            <div>
+              <strong>
+                {village.name}
+              </strong>
 
-      {filteredVillages.map(
-        (village) => (
+              <br />
+              <br />
 
-          <CircleMarker
-            key={village.id}
-            center={[
-              village.lat,
-              village.lng,
-            ]}
-            radius={12}
-            pathOptions={{
-              color: getColor(
-                village.risk
-              ),
-              fillColor: getColor(
-                village.risk
-              ),
-              fillOpacity: 0.8,
-            }}
-            eventHandlers={{
-              click: () => {
+              <strong>Risk:</strong>{" "}
+              {village.risk}/100
 
-                onVillageSelect(
-                  village
-                );
+              <br />
 
-              },
-            }}
-          >
+              <strong>Status:</strong>{" "}
+              {village.status}
 
-            <Popup>
+              <br />
+              <br />
 
-              <div>
+              🌧️ Rainfall:{" "}
+              {village.rainfall} mm
 
-                <strong>
-                  {village.name}
-                </strong>
+              <br />
 
-                <br />
-                <br />
+              🌱 Soil:{" "}
+              {village.soilMoisture}%
 
-                <strong>
-                  Risk:
-                </strong>{" "}
-                {village.risk}/100
+              <br />
 
-                <br />
+              💧 Water:{" "}
+              {village.waterLevel} cm
 
-                <strong>
-                  Status:
-                </strong>{" "}
-                {village.status}
+              <br />
 
-                <br />
-                <br />
-
-                🌧️ Rainfall:{" "}
-                {village.rainfall} mm
-
-                <br />
-
-                🌱 Soil:{" "}
-                {village.soilMoisture}%
-
-                <br />
-
-                💧 Water:{" "}
-                {village.waterLevel} cm
-
-                <br />
-
-                ⛰️ Slope:{" "}
-                {village.slope}°
-
-              </div>
-
-            </Popup>
-
-          </CircleMarker>
-
-        )
-      )}
-
+              ⛰️ Slope:{" "}
+              {village.slope}°
+            </div>
+          </Popup>
+        </CircleMarker>
+      ))}
     </MapContainer>
-
   );
 }

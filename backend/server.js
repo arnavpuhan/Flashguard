@@ -12,9 +12,9 @@ const villages = [
     name: "Village A",
     lat: 30.0668,
     lng: 78.2676,
-    rainfall: 32,
-    soilMoisture: 45,
-    waterLevel: 28,
+    rainfall: 12,
+    soilMoisture: 30,
+    waterLevel: 18,
     slope: 12,
   },
   {
@@ -32,9 +32,9 @@ const villages = [
     name: "Village C",
     lat: 30.0915,
     lng: 78.3102,
-    rainfall: 25,
-    soilMoisture: 40,
-    waterLevel: 25,
+    rainfall: 5,
+    soilMoisture: 25,
+    waterLevel: 10,
     slope: 34,
   },
   {
@@ -48,8 +48,6 @@ const villages = [
     slope: 27,
   },
 ];
-
-/* ---------------- RISK CALCULATION ---------------- */
 
 function calculateRisk(
   rainfall,
@@ -79,22 +77,15 @@ function calculateRisk(
 }
 
 function getStatus(risk) {
-  if (risk <= 30) {
-    return "LOW";
-  }
-
-  if (risk <= 60) {
-    return "MODERATE";
-  }
-
-  if (risk <= 80) {
-    return "HIGH";
-  }
-
+  if (risk <= 30) return "LOW";
+  if (risk <= 60) return "MODERATE";
+  if (risk <= 80) return "HIGH";
   return "CRITICAL";
 }
 
-/* ---------------- ROOT ---------------- */
+/* ------------------------------------------------ */
+/* HOME */
+/* ------------------------------------------------ */
 
 app.get("/", (req, res) => {
   res.json({
@@ -104,7 +95,9 @@ app.get("/", (req, res) => {
   });
 });
 
-/* ---------------- CONTROLLED DEMO ---------------- */
+/* ------------------------------------------------ */
+/* FLOOD DEMO */
+/* ------------------------------------------------ */
 
 app.post("/api/demo/flood", (req, res) => {
   const villageId = Number(req.body.villageId || 3);
@@ -119,13 +112,6 @@ app.post("/api/demo/flood", (req, res) => {
     });
   }
 
-  /*
-    Controlled hackathon demonstration.
-
-    Each click moves Village C through:
-    NORMAL → MODERATE → HIGH → CRITICAL
-  */
-
   if (!village.demoStage) {
     village.demoStage = 0;
   }
@@ -136,37 +122,53 @@ app.post("/api/demo/flood", (req, res) => {
     village.demoStage = 4;
   }
 
-  const stages = {
-    1: {
-      rainfall: 35,
-      soilMoisture: 48,
-      waterLevel: 30,
-    },
+  /*
+    STAGE 1
+    Normal environmental conditions
+    Expected status: LOW
+  */
 
-    2: {
-      rainfall: 70,
-      soilMoisture: 62,
-      waterLevel: 46,
-    },
+  if (village.demoStage === 1) {
+    village.rainfall = 5;
+    village.soilMoisture = 25;
+    village.waterLevel = 10;
+  }
 
-    3: {
-      rainfall: 105,
-      soilMoisture: 78,
-      waterLevel: 62,
-    },
+  /*
+    STAGE 2
+    Increasing environmental stress
+    Expected status: MODERATE
+  */
 
-    4: {
-      rainfall: 145,
-      soilMoisture: 94,
-      waterLevel: 78,
-    },
-  };
+  if (village.demoStage === 2) {
+    village.rainfall = 55;
+    village.soilMoisture = 55;
+    village.waterLevel = 38;
+  }
 
-  const stage = stages[village.demoStage];
+  /*
+    STAGE 3
+    Dangerous conditions
+    Expected status: HIGH
+  */
 
-  village.rainfall = stage.rainfall;
-  village.soilMoisture = stage.soilMoisture;
-  village.waterLevel = stage.waterLevel;
+  if (village.demoStage === 3) {
+    village.rainfall = 100;
+    village.soilMoisture = 75;
+    village.waterLevel = 62;
+  }
+
+  /*
+    STAGE 4
+    Critical flood conditions
+    Expected status: CRITICAL
+  */
+
+  if (village.demoStage === 4) {
+    village.rainfall = 145;
+    village.soilMoisture = 94;
+    village.waterLevel = 78;
+  }
 
   const risk = calculateRisk(
     village.rainfall,
@@ -177,6 +179,13 @@ app.post("/api/demo/flood", (req, res) => {
 
   const status = getStatus(risk);
 
+  const stageNames = {
+    1: "NORMAL CONDITIONS",
+    2: "MODERATE RISK",
+    3: "HIGH RISK",
+    4: "CRITICAL FLOOD RISK",
+  };
+
   res.json({
     message: "Flood simulation stage applied",
 
@@ -186,10 +195,7 @@ app.post("/api/demo/flood", (req, res) => {
 
     totalStages: 4,
 
-    stageName:
-      status === "LOW"
-        ? "NORMAL"
-        : status,
+    stageName: stageNames[village.demoStage],
 
     village: {
       ...village,
@@ -199,7 +205,9 @@ app.post("/api/demo/flood", (req, res) => {
   });
 });
 
-/* ---------------- RESET DEMO ---------------- */
+/* ------------------------------------------------ */
+/* RESET FLOOD DEMO */
+/* ------------------------------------------------ */
 
 app.post("/api/demo/reset", (req, res) => {
   const village = villages.find(
@@ -214,9 +222,11 @@ app.post("/api/demo/reset", (req, res) => {
 
   village.demoStage = 0;
 
-  village.rainfall = 25;
-  village.soilMoisture = 40;
-  village.waterLevel = 25;
+  village.rainfall = 5;
+
+  village.soilMoisture = 25;
+
+  village.waterLevel = 10;
 
   const risk = calculateRisk(
     village.rainfall,
@@ -238,7 +248,9 @@ app.post("/api/demo/reset", (req, res) => {
   });
 });
 
-/* ---------------- ALL VILLAGES ---------------- */
+/* ------------------------------------------------ */
+/* ALL VILLAGES */
+/* ------------------------------------------------ */
 
 app.get("/api/villages", (req, res) => {
   const result = villages.map((village) => {
@@ -259,7 +271,9 @@ app.get("/api/villages", (req, res) => {
   res.json(result);
 });
 
-/* ---------------- ONE VILLAGE ---------------- */
+/* ------------------------------------------------ */
+/* SINGLE VILLAGE */
+/* ------------------------------------------------ */
 
 app.get("/api/villages/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -288,7 +302,9 @@ app.get("/api/villages/:id", (req, res) => {
   });
 });
 
-/* ---------------- HEALTH ---------------- */
+/* ------------------------------------------------ */
+/* HEALTH CHECK */
+/* ------------------------------------------------ */
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -300,7 +316,9 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-/* ---------------- SERVER ---------------- */
+/* ------------------------------------------------ */
+/* START SERVER */
+/* ------------------------------------------------ */
 
 const PORT = process.env.PORT || 5000;
 
